@@ -232,21 +232,21 @@ class VariationalAutoencoder(nn.Module):
         z_mu, z_log_sigma = self.encoder(x)
         z = self._sampler(z_mu, z_log_sigma)
         # logger.info(f"z_mu {z_mu.mean().cpu().detach().numpy()}, z_log_sigma {z_log_sigma.mean().cpu().detach().numpy()}")
-        logger.info(f"z_hat {z.mean().cpu().detach().numpy()}")
+        # logger.info(f"z_hat {z.mean().cpu().detach().numpy()}")
 
         z_KL_div = 0.5 * torch.sum(1.0 + 2.0*z_log_sigma - z_mu**2.0 - torch.exp(2.0*z_log_sigma), dim=1)
 
         x_reconstructed, x_log_logits = self.decoder(z)
         logp_xz = torch.sum(torch.sum(x * x_log_logits, dim=-1), dim=-1)
-        logger.info(f"x_reconstructed {x_reconstructed.mean().cpu().detach().numpy()}")
+        # logger.info(f"x_reconstructed {x_reconstructed.mean().cpu().detach().numpy()}")
 
         x_KL_div = self.decoder.get_KL_div()
 
         return x_reconstructed, logp_xz, z_KL_div, x_KL_div
 
     def configure_optimizers(self, learning_rate=1e-3, betas=(0.9, 0.999)):
-        # optimizer = torch.optim.AdamW(self.parameters(), lr=learning_rate, betas=betas)
-        optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=betas)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=learning_rate, betas=betas)
+        # optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=betas)
         return optimizer
 
 

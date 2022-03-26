@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 class Trainer:
     def __init__(self, model, output_dir='./', learning_rate=3e-4, betas=(0.9, 0.999), grad_norm_clip=1.0,
                  multi_gpu=False, print_step_size=100, save_checkpoint=1000):
-        self.model = model
 
         self.learning_rate = learning_rate
         self.betas = betas
@@ -25,16 +24,15 @@ class Trainer:
         self.print_step_size = print_step_size
         self.save_checkpoint = save_checkpoint
 
-        self.LB_list = []
-        self.loss_params_list = []
-        self.KLD_latent_list = []
-        self.reconstruct_list = []
+        self.loss_list = []
+        self.x_KL_div_list = []
+        self.z_KL_div_list = []
+        self.logp_xz_list = []
 
-        self.device = 'cpu'
-        if torch.cuda.is_available():
-            self.device = torch.cuda.current_device()
-            if multi_gpu:
-                self.model = torch.nn.DataParallel(self.model).to(self.device)
+        self.device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
+        logger.info(f"device = {self.device}")
+        self.model = torch.nn.DataParallel(model).to(self.device)
+
 
     def _save_checkpoint(self, base_dir, info, valid_loss):
         """save checkpoint during training. Format: model_{info}_{valid_loss}"""
@@ -63,10 +61,10 @@ class Trainer:
                 index_range = np.arange(step-self.print_step_size, step)
 
                 logger.info(f"Step={step + restart_step}, "
-                            f"loss={np.mean(np.array(self.LB_list)[index_range])}, "
-                            f"Params={np.mean(np.array(self.loss_params_list)[index_range])}, "
-                            f"Latent={np.mean(np.array(self.KLD_latent_list)[index_range])}, "
-                            f"Reconstruct={np.mean(np.array(self.reconstruct_list)[index_range])}")
+                            f"loss={np.mean(np.array(self.loss_list)[index_range])}, "
+                            f"x_div={np.mean(np.array(self.x_KL_div_list)[index_range])}, "
+                            f"z_div={np.mean(np.array(self.z_KL_div_list)[index_range])}, "
+                            f"zx_div={np.mean(np.array(self.logp_xz_list)[index_range])}")
             self.writer.add_scalar('loss', loss, step + 1)  # rewrite if having test dataset
 
             if self.save_checkpoint and step % self.save_checkpoint == 0:
@@ -79,12 +77,12 @@ class Trainer:
         x = x.to(self.device)
         with torch.set_grad_enabled(True):
             x_reconstructed, logp_xz, z_KL_div, x_KL_div = model(x)
-            loss = torch.mean(logp_xz + z_KL_div) + (x_KL_div/nef)
+            loss = -(torch.mean(logp_xz + z_KL_div) + (x_KL_div/nef))
 
-            self.LB_list.append(loss.cpu().detach().numpy())
-            self.loss_params_list.append(x_KL_div.cpu().detach().numpy()/nef)
-            self.KLD_latent_list.append(z_KL_div.mean().cpu().detach().numpy())
-            self.reconstruct_list.append(logp_xz.mean().cpu().detach().numpy())
+            self.loss_list.append(loss.cpu().detach().numpy())
+            self.x_KL_div_list.append(x_KL_div.cpu().detach().numpy()/nef)
+            self.z_KL_div_list.append(z_KL_div.mean().cpu().detach().numpy())
+            self.logp_xz_list.append(logp_xz.mean().cpu().detach().numpy())
 
             loss = loss.mean()  # collapse all losses if they are scattered on multiple gpus
 
