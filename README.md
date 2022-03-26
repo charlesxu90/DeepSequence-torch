@@ -1,12 +1,16 @@
 # PyTroch version of DeepSequence
 
 ## Installation
-### Create & activate environment
+### Create environment
 ```commandline
-conda env create -f environment.yml
-conda activate deepseq-env 
+conda env create -f environment.yml 
 ```
 ## Usage
+Activate environment
+```commandline
+conda activate deepseq-env
+```
+Run `test.py`
 ```commandline
 python test.py
 ```
