@@ -1,8 +1,5 @@
-import logging
-from tqdm import tqdm
 import numpy as np
 import torch
-from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from model import save_model
 import logging
@@ -13,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(self, model, output_dir='./', learning_rate=3e-4, betas=(0.9, 0.999), grad_norm_clip=1.0,
-                 multi_gpu=False, print_step_size=100, save_checkpoint=1000):
+                 print_step_size=100, save_checkpoint=1000):
 
         self.learning_rate = learning_rate
         self.betas = betas
@@ -33,11 +30,10 @@ class Trainer:
         logger.info(f"device = {self.device}")
         self.model = torch.nn.DataParallel(model).to(self.device)
 
-
     def _save_checkpoint(self, base_dir, info, valid_loss):
         """save checkpoint during training. Format: model_{info}_{valid_loss}"""
         base_name = f'model_{info}_{valid_loss:.3f}'
-        logger.info(f'Save model {base_name}')
+        logger.info(f'Save model {base_name}.pt')
         save_model(self.model, base_dir, base_name)
 
     def train(self, data_obj, n_steps=300000, restart_step=0, batch_size=100):
@@ -57,13 +53,16 @@ class Trainer:
             data = torch.Tensor(data_obj.x_train[batch_index]).to(self.device)
 
             loss = self._run_step(data, model, optimizer, neff)
-            if step % self.print_step_size == 0:
-                index_range = np.arange(step-self.print_step_size, step)
+            if step % self.print_step_size == 0 or step == 1:
+                if step == 1:
+                    index_range = np.arange(0, step)
+                else:
+                    index_range = np.arange(step-self.print_step_size, step)
 
                 logger.info(f"Step={step + restart_step}, "
                             f"loss={np.mean(np.array(self.loss_list)[index_range])}, "
-                            f"x_div={np.mean(np.array(self.x_KL_div_list)[index_range])}, "
                             f"z_div={np.mean(np.array(self.z_KL_div_list)[index_range])}, "
+                            f"x_div={np.mean(np.array(self.x_KL_div_list)[index_range])}, "
                             f"zx_div={np.mean(np.array(self.logp_xz_list)[index_range])}")
             self.writer.add_scalar('loss', loss, step + 1)  # rewrite if having test dataset
 
@@ -88,7 +87,7 @@ class Trainer:
 
         model.zero_grad()
         loss.backward()
-        # torch.nn.utils.clip_grad_norm_(model.parameters(), self.grad_norm_clip)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), self.grad_norm_clip)
         optimizer.step()
 
         return loss
