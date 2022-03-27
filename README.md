@@ -1,4 +1,4 @@
-# PyTroch version of DeepSequence
+# PyTorch version of DeepSequence
 
 ## Installation
 ### Create environment
