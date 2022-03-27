@@ -23,6 +23,8 @@ python predict.py -a "datasets/BLAT_ECOLX_hmmerbit_plmc_n5_m30_f50_t0.2_r24-286_
 
 Any contributions are welcome!
 
+Note: DeepSequence is not suitable for online use, as it requires n_iter (usually 500) of predictions to get an accurate delta_elbo.
+
 ## Special thanks
 - Original repository: [DeepSequence](https://github.com/debbiemarkslab/DeepSequence) implemented with Theano.
 
